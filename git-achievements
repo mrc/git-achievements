@@ -43,7 +43,7 @@ function git_achievements_command
             echo ""
             echo "Options:"
             echo "    -l --list    Show all achievements."
-            echo "    -p --publish Generate achievements html files and if achievements.upload not set to \"true\" add the files and push to origin."
+            echo "    -p --publish Generate achievements html files and if achievements.upload is set to \"true\" add the files and push to origin."
             ;;
     esac
 }
@@ -89,7 +89,8 @@ function count_command
     # mysys gawk it old and doesn't have the bitwise operation and :( so we have to use perl for now
     export powerof2=`echo 'use Env; $y=$ENV{'count'}; $x=($y & ($y-1)); print "$x\n" ' | perl -`
 
-    if [ ${count} -eq 1 ] ; then
+    # Set a default value of 0. Bug seems to occur when the achievement is unlocked
+    if [ ${count:-0} -eq 1 ] ; then
         powerof2="1"
     fi
     #echo "cmd: $1 powerof2: $powerof2 power: $power count: $count"
@@ -200,7 +201,7 @@ function check_for_achievements
             ;;
         commit )
             count_unlock_achievement "Author" "Made 2^Level commits using git commit." "$1"
-            if [ "`git log --oneline | wc -l`" -eq "1" ] ; then
+            if [ "`git log --pretty=oneline | wc -l`" -eq "1" ] ; then
                 unlock_achievement "Let there be light" "Commit without a parent." "$1"
             fi
             case $2 in
@@ -267,10 +268,17 @@ function check_for_achievements
             count_unlock_achievement "Banker" "Join two or more development histories together with git merge." "$1"
             ;;
         push )
-            count_unlock_achievement "Socialite" "pushed a branch to a remote repository using git push" "$1"
             case $2 in
-                -f )
-                count_unlock_achievement "Thug" "Forced pushed a branch with git push -f" "push -f"
+                -n|--dry-run )
+                ;;
+            * )
+                # not a dry run
+                count_unlock_achievement "Socialite" "pushed a branch to a remote repository using git push" "$1"
+                case $2 in
+                    -f )
+                    count_unlock_achievement "Thug" "Forced pushed a branch with git push -f" "push -f"
+                    ;;
+                esac
                 ;;
             esac
             ;;
@@ -329,6 +337,9 @@ function check_for_achievements
             ;;
         whatchanged )
             count_unlock_achievement "News Reader" "Show logs with difference each commit introduces with git whatchanged" "$1"
+            ;;
+        flow )
+            count_unlock_achievement "Pedantic" "Use the flow extension to encourage an orderly and standardized branching model" "$1"
             ;;
         hash-object|update-index|commit-tree|update-ref )
             count_unlock_achievement "Plumber" "Use the internal plumbing commands of git." "$1"
@@ -398,7 +409,7 @@ echo "
     # Git Commands
     echo 'Git commands sorted by usage:' >> index.html
     echo "<pre style=\"text-align: left\">" >> index.html
-    cat  "${ACTIONLOGFILE}" | grep -v Date | awk '{ print $1 }' | sort | uniq -c | sort -nr >> index.html
+    cat  "${ACTIONLOGFILE}" | grep -v Date | grep -v 'git-dir' | awk '{ print $1 }' | sort | uniq -c | sort -nr >> index.html
     echo "</pre>" >> index.html
 
     # Locked Achievements
